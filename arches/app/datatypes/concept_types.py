@@ -6,7 +6,7 @@ from arches.app.datatypes.base import BaseDataType
 from arches.app.datatypes.datatypes import DataTypeFactory
 from arches.app.models.concept import get_preflabel_from_valueid
 from arches.app.search.elasticsearch_dsl_builder import Bool, Match, Range, Term, Nested, Exists
-from arches.app.utils.date_utils import SortableDate
+from arches.app.utils.date_utils import ExtendedDateFormat
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -43,7 +43,7 @@ class BaseConceptDataType(BaseDataType):
             result = date_range
         return result
 
-    def append_to_document(self, document, nodevalue, nodeid, tile):
+    def append_to_document(self, document, nodevalue, nodeid, tile, provisional=False):
         try:
             assert isinstance(nodevalue, (list, tuple)) #assert nodevalue is an array
         except AssertionError:
@@ -52,19 +52,19 @@ class BaseConceptDataType(BaseDataType):
             value = self.get_value(valueid)
             date_range = self.get_concept_dates(value.concept)
             if date_range is not None:
-                min_date = SortableDate(date_range['min_year']).as_float()
-                max_date = SortableDate(date_range['max_year']).as_float()
+                min_date = ExtendedDateFormat(date_range['min_year']).lower
+                max_date = ExtendedDateFormat(date_range['max_year']).upper
                 if {'gte': min_date, 'lte': max_date} not in document['date_ranges']:
                     document['date_ranges'].append({'date_range': {'gte': min_date, 'lte': max_date}, 'nodegroup_id': tile.nodegroup_id})
-            document['domains'].append({'label': value.value, 'conceptid': value.concept_id, 'valueid': valueid, 'nodegroup_id': tile.nodegroup_id})
-            document['strings'].append({'string': value.value, 'nodegroup_id': tile.nodegroup_id})
+            document['domains'].append({'label': value.value, 'conceptid': value.concept_id, 'valueid': valueid, 'nodegroup_id': tile.nodegroup_id, 'provisional': provisional})
+            document['strings'].append({'string': value.value, 'nodegroup_id': tile.nodegroup_id, 'provisional': provisional})
 
 
 class ConceptDataType(BaseConceptDataType):
 
     def validate(self, value, source=''):
         errors = []
-        
+
         ## first check to see if the validator has been passed a valid UUID,
         ## which should be the case at this point. return error if not.
         try:
@@ -73,7 +73,7 @@ class ConceptDataType(BaseConceptDataType):
             message = "This is an invalid concept prefLabel, or an incomplete UUID"
             errors.append({'type': 'ERROR', 'message': 'datatype: {0} value: {1} {2} - {3}. {4}'.format(self.datatype_model.datatype, value, source, message, 'This data was not imported.')})
             return errors
-            
+
         ## if good UUID, test whether it corresponds to an actual Value object
         try:
             models.Value.objects.get(pk=value)

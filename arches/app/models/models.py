@@ -159,6 +159,7 @@ class Edge(models.Model):
 
 class EditLog(models.Model):
     editlogid = models.UUIDField(primary_key=True, default=uuid.uuid1)
+    resourcedisplayname = models.TextField(blank=True, null=True)
     resourceclassid = models.TextField(blank=True, null=True)
     resourceinstanceid = models.TextField(blank=True, null=True)
     nodegroupid = models.TextField(blank=True, null=True)
@@ -171,6 +172,7 @@ class EditLog(models.Model):
     user_firstname = models.TextField(blank=True, null=True)
     user_lastname = models.TextField(blank=True, null=True)
     user_email = models.TextField(blank=True, null=True)
+    user_username = models.TextField(blank=True, null=True)
     note = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -617,6 +619,47 @@ class TileModel(models.Model): #Tile
             "20000000-0000-0000-0000-000000000004": "Primary"
         }
 
+    the provisionaledits JSONField has this schema:
+
+    values are dictionaries with n number of keys that represent nodeid's and values the value of that node instance
+
+    .. code-block:: python
+
+        {
+            userid: {
+                value: node value,
+                status: "review", "approved", or "rejected"
+                action: "create", "update", or "delete"
+                reviewer: reviewer's user id,
+                timestamp: time of last provisional change,
+                reviewtimestamp: time of review
+                }
+            ...
+        }
+
+        {
+            1: {
+                "value": {
+                        "20000000-0000-0000-0000-000000000002": "Jack",
+                        "20000000-0000-0000-0000-000000000003": "Smith",
+                        "20000000-0000-0000-0000-000000000004": "Primary"
+                      },
+                "status": "rejected",
+                "action": "update",
+                "reviewer": 8,
+                "timestamp": "20180101T1500",
+                "reviewtimestamp": "20180102T0800",
+                },
+            15: {
+                "value": {
+                        "20000000-0000-0000-0000-000000000002": "John",
+                        "20000000-0000-0000-0000-000000000003": "Smith",
+                        "20000000-0000-0000-0000-000000000004": "Secondary"
+                      },
+                "status": "review",
+                "action": "update",
+        }
+
     """
 
     tileid = models.UUIDField(primary_key=True, default=uuid.uuid1)  # This field type is a guess.
@@ -625,6 +668,7 @@ class TileModel(models.Model): #Tile
     data = JSONField(blank=True, null=True, db_column='tiledata')  # This field type is a guess.
     nodegroup = models.ForeignKey(NodeGroup, db_column='nodegroupid')
     sortorder = models.IntegerField(blank=True, null=True, default=0)
+    provisionaledits = JSONField(blank=True, null=True, db_column='provisionaledits')  # This field type is a guess.
 
     class Meta:
         managed = True

@@ -35,7 +35,7 @@ from arches.app.models.system_settings import settings
 from arches.app.utils.pagination import get_paginator
 from arches.app.utils.response import JSONResponse
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
-from arches.app.utils.date_utils import SortableDate
+from arches.app.utils.date_utils import ExtendedDateFormat
 from arches.app.search.search_engine_factory import SearchEngineFactory
 from arches.app.search.elasticsearch_dsl_builder import Bool, Match, Query, Nested, Term, Terms, GeoShape, Range, MinAgg, MaxAgg, RangeAgg, Aggregation, GeoHashGridAgg, GeoBoundsAgg, FiltersAgg, NestedAgg
 from arches.app.utils.data_management.resources.exporter import ResourceExporter
@@ -88,6 +88,7 @@ class SearchView(BaseManagerView):
             resource_graphs=resource_graphs,
             datatypes=datatypes,
             datatypes_json=JSONSerializer().serialize(datatypes),
+            user_is_reviewer = request.user.groups.filter(name='Resource Reviewer').exists()
         )
 
         context['nav']['title'] = _('Search')
@@ -108,13 +109,17 @@ def search_terms(request):
     se = SearchEngineFactory().create()
     searchString = request.GET.get('q', '')
     query = Query(se, start=0, limit=0)
+    user_is_reviewer = request.user.groups.filter(name='Resource Reviewer').exists()
 
     boolquery = Bool()
     boolquery.should(Match(field='value', query=searchString.lower(), type='phrase_prefix', fuzziness='AUTO'))
     boolquery.should(Match(field='value.folded', query=searchString.lower(), type='phrase_prefix', fuzziness='AUTO'))
     boolquery.should(Match(field='value.folded', query=searchString.lower(), fuzziness='AUTO'))
-    query.add_query(boolquery)
 
+    if user_is_reviewer is False:
+        boolquery.filter(Terms(field='provisional', terms=['false']))
+
+    query.add_query(boolquery)
     base_agg = Aggregation(name='value_agg', type='terms', field='value.raw', size=settings.SEARCH_DROPDOWN_LENGTH, order={"max_score": "desc"})
     nodegroupid_agg = Aggregation(name='nodegroupid', type='terms', field='nodegroupid')
     top_concept_agg = Aggregation(name='top_concept', type='terms', field='top_concept')
@@ -126,7 +131,6 @@ def search_terms(request):
     base_agg.add_aggregation(top_concept_agg)
     base_agg.add_aggregation(nodegroupid_agg)
     query.add_aggregation(base_agg)
-
     results = query.search(index='strings') or {'hits': {'hits':[]}}
 
     i = 0;
@@ -159,8 +163,26 @@ def search_terms(request):
 
     return JSONResponse(ret)
 
+
+def select_geoms_for_results(features, geojson_nodes, user_is_reviewer):
+    res = []
+    for feature in features:
+        if 'provisional' in feature:
+            if feature['provisional'] == False or (user_is_reviewer is True and feature['provisional'] is True):
+                if feature['nodegroup_id'] in geojson_nodes:
+                    res.append(feature)
+        else:
+            if feature['nodegroup_id'] in geojson_nodes:
+                res.append(feature)
+
+    return res
+
 def search_results(request):
-    search_results_dsl = build_search_results_dsl(request)
+    try:
+        search_results_dsl = build_search_results_dsl(request)
+    except Exception as err:
+        return JSONResponse(err.message, status=500)
+
     dsl = search_results_dsl['query']
     search_buffer = search_results_dsl['search_buffer']
     dsl.include('graph_id')
@@ -171,10 +193,12 @@ def search_results(request):
     dsl.include('displayname')
     dsl.include('displaydescription')
     dsl.include('map_popup')
+    dsl.include('provisional')
 
     results = dsl.search(index='resource', doc_type=get_doc_type(request))
 
     if results is not None:
+        user_is_reviewer = request.user.groups.filter(name='Resource Reviewer').exists()
         total = results['hits']['total']
         page = 1 if request.GET.get('page') == '' else int(request.GET.get('page', 1))
 
@@ -183,18 +207,10 @@ def search_results(request):
 
         # only reuturn points and geometries a user is allowed to view
         geojson_nodes = get_nodegroups_by_datatype_and_perm(request, 'geojson-feature-collection', 'read_nodegroup')
-        for result in results['hits']['hits']:
-            points = []
-            for point in result['_source']['points']:
-                if point['nodegroup_id'] in geojson_nodes:
-                    points.append(point)
-            result['_source']['points'] = points
 
-            geoms = []
-            for geom in result['_source']['geometries']:
-                if geom['nodegroup_id'] in geojson_nodes:
-                    geoms.append(geom)
-            result['_source']['geometries'] = geoms
+        for result in results['hits']['hits']:
+            result['_source']['points'] = select_geoms_for_results(result['_source']['points'], geojson_nodes, user_is_reviewer)
+            result['_source']['geometries'] = select_geoms_for_results(result['_source']['geometries'], geojson_nodes, user_is_reviewer)
 
         ret = {}
         ret['results'] = results
@@ -209,6 +225,7 @@ def search_results(request):
         ret['paginator']['start_index'] = page.start_index()
         ret['paginator']['end_index'] = page.end_index()
         ret['paginator']['pages'] = pages
+
         return JSONResponse(ret)
     else:
         return HttpResponseNotFound(_("There was an error retrieving the search results"))
@@ -230,9 +247,39 @@ def get_doc_type(request):
 
     return list(doc_type)
 
+def get_provisional_type(request):
+    """
+    Parses the provisional filter data to determine if a search results will
+    include provisional (True) exclude provisional (False) or inlude only
+    provisional 'only provisional'
+    """
+
+    result = False
+    provisional_filter = JSONDeserializer().deserialize(request.GET.get('provisionalFilter', '[]'))
+    user_is_reviewer = request.user.groups.filter(name='Resource Reviewer').exists()
+    if user_is_reviewer != False:
+        if len(provisional_filter) == 0:
+            result = True
+        else:
+            inverted = provisional_filter[0]['inverted']
+            if provisional_filter[0]['provisionaltype'] == 'Provisional':
+                if inverted == False:
+                    result = 'only provisional'
+                else:
+                    result = False
+            if provisional_filter[0]['provisionaltype'] == 'Authoritative':
+                if inverted == False:
+                    result = False
+                else:
+                    result = 'only provisional'
+
+    return result
+
 def build_search_results_dsl(request):
     term_filter = request.GET.get('termFilter', '')
     spatial_filter = JSONDeserializer().deserialize(request.GET.get('mapFilter', '{}'))
+    include_provisional = get_provisional_type(request)
+
     export = request.GET.get('export', None)
     page = 1 if request.GET.get('page') == '' else int(request.GET.get('page', 1))
     temporal_filter = JSONDeserializer().deserialize(request.GET.get('temporalFilter', '{}'))
@@ -246,17 +293,39 @@ def build_search_results_dsl(request):
         limit = settings.SEARCH_ITEMS_PER_PAGE
 
     query = Query(se, start=limit*int(page-1), limit=limit)
+    search_query = Bool()
+
     nested_agg = NestedAgg(path='points', name='geo_aggs')
-    nested_agg.add_aggregation(GeoHashGridAgg(field='points.point', name='grid', precision=settings.HEX_BIN_PRECISION))
-    nested_agg.add_aggregation(GeoBoundsAgg(field='points.point', name='bounds'))
+    nested_agg_filter = FiltersAgg(name='inner')
+
+    if include_provisional == True:
+        nested_agg_filter.add_filter(Terms(field='points.provisional', terms=['false','true']))
+
+    else:
+        provisional_resource_filter = Bool()
+
+        if include_provisional == False:
+            provisional_resource_filter.filter(Terms(field='provisional', terms=['false', 'partial']))
+            nested_agg_filter.add_filter(Terms(field='points.provisional', terms=['false']))
+
+        elif include_provisional == 'only provisional':
+            provisional_resource_filter.filter(Terms(field='provisional', terms=['true', 'partial']))
+            nested_agg_filter.add_filter(Terms(field='points.provisional', terms=['true']))
+
+        search_query.must(provisional_resource_filter)
+
+
+    nested_agg_filter.add_aggregation(GeoHashGridAgg(field='points.point', name='grid', precision=settings.HEX_BIN_PRECISION))
+    nested_agg_filter.add_aggregation(GeoBoundsAgg(field='points.point', name='bounds'))
+    nested_agg.add_aggregation(nested_agg_filter)
     query.add_aggregation(nested_agg)
 
-    search_query = Bool()
     permitted_nodegroups = get_permitted_nodegroups(request.user)
 
     if term_filter != '':
         for term in JSONDeserializer().deserialize(term_filter):
             term_query = Bool()
+            provisional_term_filter = Bool()
             if term['type'] == 'term' or term['type'] == 'string':
                 string_filter = Bool()
                 if term['type'] == 'term':
@@ -264,6 +333,11 @@ def build_search_results_dsl(request):
                 elif term['type'] == 'string':
                     string_filter.should(Match(field='strings.string', query=term['value'], type='phrase_prefix'))
                     string_filter.should(Match(field='strings.string.folded', query=term['value'], type='phrase_prefix'))
+
+                if include_provisional == False:
+                    string_filter.must_not(Match(field='strings.provisional', query='true', type='phrase'))
+                elif include_provisional == 'only provisional':
+                    string_filter.must_not(Match(field='strings.provisional', query='false', type='phrase'))
 
                 string_filter.filter(Terms(field='strings.nodegroup_id', terms=permitted_nodegroups))
                 nested_string_filter = Nested(path='strings', query=string_filter)
@@ -278,6 +352,12 @@ def build_search_results_dsl(request):
                 conceptid_filter = Bool()
                 conceptid_filter.filter(Terms(field='domains.conceptid', terms=concept_ids))
                 conceptid_filter.filter(Terms(field='domains.nodegroup_id', terms=permitted_nodegroups))
+
+                if include_provisional == False:
+                    conceptid_filter.must_not(Match(field='domains.provisional', query='true', type='phrase'))
+                elif include_provisional == 'only provisional':
+                    conceptid_filter.must_not(Match(field='domains.provisional', query='false', type='phrase'))
+
                 nested_conceptid_filter = Nested(path='domains', query=conceptid_filter)
                 if term['inverted']:
                     search_query.must_not(nested_conceptid_filter)
@@ -295,6 +375,7 @@ def build_search_results_dsl(request):
             feature_geom = JSONDeserializer().deserialize(search_buffer.json)
             geoshape = GeoShape(field='geometries.geom.features.geometry', type=feature_geom['type'], coordinates=feature_geom['coordinates'] )
 
+
             invert_spatial_search = False
             if 'inverted' in feature_properties:
                 invert_spatial_search = feature_properties['inverted']
@@ -307,12 +388,19 @@ def build_search_results_dsl(request):
 
             # get the nodegroup_ids that the user has permission to search
             spatial_query.filter(Terms(field='geometries.nodegroup_id', terms=permitted_nodegroups))
+
+            if include_provisional == False:
+                spatial_query.filter(Terms(field='geometries.provisional', terms=['false']))
+
+            elif include_provisional == 'only provisional':
+                spatial_query.filter(Terms(field='geometries.provisional', terms=['true']))
+
             search_query.filter(Nested(path='geometries', query=spatial_query))
 
     if 'fromDate' in temporal_filter and 'toDate' in temporal_filter:
         now = str(datetime.utcnow())
-        start_date = SortableDate(temporal_filter['fromDate'])
-        end_date = SortableDate(temporal_filter['toDate'])
+        start_date = ExtendedDateFormat(temporal_filter['fromDate'])
+        end_date = ExtendedDateFormat(temporal_filter['toDate'])
         date_nodeid = str(temporal_filter['dateNodeId']) if 'dateNodeId' in temporal_filter and temporal_filter['dateNodeId'] != '' else None
         query_inverted = False if 'inverted' not in temporal_filter else temporal_filter['inverted']
 
@@ -325,34 +413,60 @@ def build_search_results_dsl(request):
             inverted_date_ranges_query = Bool()
 
             if start_date.is_valid():
-                inverted_date_query.should(Range(field='dates.date', lt=start_date.as_float()))
-                inverted_date_ranges_query.should(Range(field='date_ranges.date_range', lt=start_date.as_float()))
+                inverted_date_query.should(Range(field='dates.date', lt=start_date.lower))
+                inverted_date_ranges_query.should(Range(field='date_ranges.date_range', lt=start_date.lower))
             if end_date.is_valid():
-                inverted_date_query.should(Range(field='dates.date', gt=end_date.as_float()))
-                inverted_date_ranges_query.should(Range(field='date_ranges.date_range', gt=end_date.as_float()))
+                inverted_date_query.should(Range(field='dates.date', gt=end_date.upper))
+                inverted_date_ranges_query.should(Range(field='date_ranges.date_range', gt=end_date.upper))
 
             date_query = Bool()
             date_query.filter(inverted_date_query)
             date_query.filter(Terms(field='dates.nodegroup_id', terms=permitted_nodegroups))
+
+            if include_provisional == False:
+                date_query.filter(Terms(field='dates.provisional', terms=['false']))
+
+            elif include_provisional == 'only provisional':
+                date_query.filter(Terms(field='dates.provisional', terms=['true']))
+
             if date_nodeid:
                 date_query.filter(Term(field='dates.nodeid', term=date_nodeid))
             else:
                 date_ranges_query = Bool()
                 date_ranges_query.filter(inverted_date_ranges_query)
                 date_ranges_query.filter(Terms(field='date_ranges.nodegroup_id', terms=permitted_nodegroups))
+
+                if include_provisional == False:
+                    date_ranges_query.filter(Terms(field='date_ranges.provisional', terms=['false']))
+
+                elif include_provisional == 'only provisional':
+                    date_ranges_query.filter(Terms(field='date_ranges.provisional', terms=['true']))
+
                 temporal_query.should(Nested(path='date_ranges', query=date_ranges_query))
             temporal_query.should(Nested(path='dates', query=date_query))
 
         else:
             date_query = Bool()
-            date_query.filter(Range(field='dates.date', gte=start_date.as_float(), lte=end_date.as_float()))
+            date_query.filter(Range(field='dates.date', gte=start_date.lower, lte=end_date.upper))
             date_query.filter(Terms(field='dates.nodegroup_id', terms=permitted_nodegroups))
+
+            if include_provisional == False:
+                date_query.filter(Terms(field='dates.provisional', terms=['false']))
+            elif include_provisional == 'only provisional':
+                date_query.filter(Terms(field='dates.provisional', terms=['true']))
+
             if date_nodeid:
                 date_query.filter(Term(field='dates.nodeid', term=date_nodeid))
             else:
                 date_ranges_query = Bool()
-                date_ranges_query.filter(Range(field='date_ranges.date_range', gte=start_date.as_float(), lte=end_date.as_float(), relation='intersects'))
+                date_ranges_query.filter(Range(field='date_ranges.date_range', gte=start_date.lower, lte=end_date.upper, relation='intersects'))
                 date_ranges_query.filter(Terms(field='date_ranges.nodegroup_id', terms=permitted_nodegroups))
+
+                if include_provisional == False:
+                    date_ranges_query.filter(Terms(field='date_ranges.provisional', terms=['false']))
+                if include_provisional == 'only provisional':
+                    date_ranges_query.filter(Terms(field='date_ranges.provisional', terms=['true']))
+
                 temporal_query.should(Nested(path='date_ranges', query=date_ranges_query))
             temporal_query.should(Nested(path='dates', query=date_query))
 
@@ -385,6 +499,7 @@ def build_search_results_dsl(request):
     query.add_query(search_query)
     if search_buffer != None:
         search_buffer = search_buffer.geojson
+
     return {'query': query, 'search_buffer':search_buffer}
 
 def get_permitted_nodegroups(user):
@@ -486,8 +601,8 @@ def time_wheel_config(request):
             min_millenium = millennium
             max_millenium = millennium + 1000
             millenium_name = "Millennium (%s - %s)"%(min_millenium, max_millenium)
-            mill_boolquery = gen_range_agg(gte=SortableDate(min_millenium).as_float()-1,
-                lte=SortableDate(max_millenium).as_float(),
+            mill_boolquery = gen_range_agg(gte=ExtendedDateFormat(min_millenium).lower,
+                lte=ExtendedDateFormat(max_millenium).lower,
                 permitted_nodegroups=get_permitted_nodegroups(request.user))
             millenium_agg = FiltersAgg(name=millenium_name)
             millenium_agg.add_filter(mill_boolquery)
@@ -497,7 +612,8 @@ def time_wheel_config(request):
                 min_century = century
                 max_century = century + 100
                 century_name="Century (%s - %s)"%(min_century, max_century)
-                cent_boolquery = gen_range_agg(gte=SortableDate(min_century).as_float()-1, lte=SortableDate(max_century).as_float())
+                cent_boolquery = gen_range_agg(gte=ExtendedDateFormat(min_century).lower,
+                    lte=ExtendedDateFormat(max_century).lower)
                 century_agg = FiltersAgg(name=century_name)
                 century_agg.add_filter(cent_boolquery)
                 millenium_agg.add_aggregation(century_agg)
@@ -507,7 +623,8 @@ def time_wheel_config(request):
                     min_decade = decade
                     max_decade = decade + 10
                     decade_name = "Decade (%s - %s)"%(min_decade, max_decade)
-                    dec_boolquery = gen_range_agg(gte=SortableDate(min_decade).as_float()-1, lte=SortableDate(max_decade).as_float())
+                    dec_boolquery = gen_range_agg(gte=ExtendedDateFormat(min_decade).lower,
+                        lte=ExtendedDateFormat(max_decade).lower)
                     decade_agg = FiltersAgg(name=decade_name)
                     decade_agg.add_filter(dec_boolquery)
                     century_agg.add_aggregation(decade_agg)
