@@ -26,11 +26,11 @@
                   {% for edit in recent_edits %}
                   <tr>
                     {% if edit.deleted == True %}
-                      <td><div>{{edit.resourceinstanceid}}</div><span>{% trans ' (Deleted)' %}</span></td>
+                      <td><div>{{edit.resourceinstanceid}}<span>{% trans " (Resource Deleted)" %}</span></div></td>
                     {% else %}
                       <td><a href="{% url 'resource_editor' edit.resourceinstanceid %}" class="regular-link" target="_blank">{{edit.resourceinstanceid}}</a></td>
                     {% endif %}
-                      <td>{{edit.displayname}}</td>
+                      <td>{{edit.resourcedisplayname}}</td>
                       <td>{{edit.resource_model_name}}</td>
                       <td>{{edit.timestamp}}</td>
                       <td>{{edit.friendly_edittype}}</td>
