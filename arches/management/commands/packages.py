@@ -301,6 +301,7 @@ class Command(BaseCommand):
                 print e
                 print 'Could not connect to db'
 
+
         def load_resource_views(package_dir):
             resource_views = glob.glob(os.path.join(package_dir, 'business_data','resource_views', '*.sql'))
             try:
