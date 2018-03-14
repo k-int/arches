@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import uuid, importlib
 import datetime
+import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -95,7 +96,7 @@ class Tile(models.TileModel):
                             tile.parenttile = self
                             self.tiles[key].append(tile)
 
-    def save_edit(self, user={}, note='', edit_type='', old_value=None, new_value=None):
+    def save_edit(self, user={}, note='', edit_type='', old_value=None, new_value=None, newprovisionalvalue=None, oldprovisionalvalue=None):
         timestamp = datetime.datetime.now()
         edit = EditLog()
         edit.resourceclassid = self.resourceinstance.graph_id
@@ -112,6 +113,8 @@ class Tile(models.TileModel):
         edit.newvalue = new_value
         edit.timestamp = timestamp
         edit.edittype = edit_type
+        edit.newprovisionalvalue = newprovisionalvalue
+        edit.oldprovisionalvalue = oldprovisionalvalue
         edit.save()
 
     def apply_provisional_edit(self, user, data, action='create', status='review'):
@@ -128,9 +131,10 @@ class Tile(models.TileModel):
             "timestamp": timezone.now(),
             "reviewtimestamp": None
         }
+
         if self.provisionaledits is not None:
             provisionaledits = JSONDeserializer().deserialize(self.provisionaledits)
-            provisionaledits[user.id] = provisionaledit
+            provisionaledits[str(user.id)] = provisionaledit
         else:
             provisionaledits = {
                 user.id: provisionaledit
@@ -145,12 +149,9 @@ class Tile(models.TileModel):
         """
 
         result = False
-        if self.provisionaledits is not None:
-            provisionaledits = JSONDeserializer().deserialize(self.provisionaledits)
-            for user, edit in provisionaledits.iteritems():
-                if edit['status'] != 'approved' and edit['action'] == 'create':
-                    result = True
-                    break
+        if self.provisionaledits is not None and len(self.data) == 0:
+            result = True
+
         return result
 
     def user_owns_provisional(self, user):
@@ -165,9 +166,16 @@ class Tile(models.TileModel):
             provisionaledits = JSONDeserializer().deserialize(self.provisionaledits)
             if str(user.id) in provisionaledits:
                 edit = provisionaledits[str(user.id)]
-                if edit['action'] == 'create' and edit['status'] != 'approved':
-                    result = True
+                result = True
         return result
+
+    def get_provisional_edit(self, tile, user):
+        edit = None
+        if tile.provisionaledits is not None:
+            edits = json.loads(tile.provisionaledits)
+            if str(user.id) in edits:
+                edit = edits[str(user.id)]
+        return edit
 
     def check_for_missing_nodes(self, request):
         for nodeid, value in self.data.iteritems():
@@ -183,14 +191,26 @@ class Tile(models.TileModel):
                         message = _('This card requires values for the following:')
                         raise ValidationError(message, (', ').join(missing_nodes))
 
+    def validate(self, errors=None):
+        for nodeid, value in self.data.iteritems():
+            datatype_factory = DataTypeFactory()
+            node = models.Node.objects.get(nodeid=nodeid)
+            datatype = datatype_factory.get_instance(node.datatype)
+            error = datatype.validate(value)
+            if errors != None:
+                errors += error
+        return errors
+
     def save(self, *args, **kwargs):
         request = kwargs.pop('request', None)
         index = kwargs.pop('index', True)
+        log = kwargs.pop('log', True)
         self.__preSave(request)
         missing_nodes = []
         creating_new_tile = True
         user_is_reviewer = False
-
+        newprovisionalvalue = None
+        oldprovisionalvalue = None
         self.check_for_missing_nodes(request)
 
         try:
@@ -208,22 +228,27 @@ class Tile(models.TileModel):
         if user is not None:
             if user_is_reviewer == False and creating_new_tile == False:
                 self.apply_provisional_edit(user, self.data, action='update')
-                self.data = existing_model.data
+                newprovisionalvalue = self.data
+                oldprovisional = self.get_provisional_edit(existing_model, user)
+                if oldprovisional is not None:
+                    oldprovisionalvalue = oldprovisional['value']
 
+                self.data = existing_model.data
             if creating_new_tile == True:
                 if self.is_provisional() == False and user_is_reviewer == False:
                     self.apply_provisional_edit(user, data=self.data, action='create')
+                    newprovisionalvalue = self.data
                     self.data = {}
 
         super(Tile, self).save(*args, **kwargs)
         #We have to save the edit log record after calling save so that the
         #resource's displayname changes are avaliable
-        if user is None or user_is_reviewer == True:
+        if log == True:
             user = {} if user == None else user
             if creating_new_tile == True:
-                self.save_edit(user=user, edit_type=edit_type, old_value={}, new_value=self.data)
+                self.save_edit(user=user, edit_type=edit_type, old_value={}, new_value=self.data, newprovisionalvalue=newprovisionalvalue)
             else:
-                self.save_edit(user=user, edit_type=edit_type, old_value=existing_model.data, new_value=self.data)
+                self.save_edit(user=user, edit_type=edit_type, old_value=existing_model.data, new_value=self.data, newprovisionalvalue=newprovisionalvalue, oldprovisionalvalue=oldprovisionalvalue)
 
         if index and unicode(self.resourceinstance.graph_id) != unicode(settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID):
             self.index()
@@ -355,12 +380,12 @@ class Tile(models.TileModel):
 
     def filter_by_perm(self, user, perm):
         if user:
-            if user.has_perm(perm, self.nodegroup):
+            if user.has_perm(perm, self.nodegroup_id):
                 filtered_tiles = {}
                 for key, tiles in self.tiles.iteritems():
                     filtered_tiles[key] = []
                     for tile in tiles:
-                        if user.has_perm(perm, tile.nodegroup):
+                        if user.has_perm(perm, tile.nodegroup_id):
                             filtered_tiles[key].append(tile)
                 self.tiles = filtered_tiles
             else:

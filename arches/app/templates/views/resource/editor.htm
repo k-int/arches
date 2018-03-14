@@ -29,6 +29,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 {% endblock graph_header_buttons %}
 
 {% block content %}
+<div class="resource-editor-search" data-bind="css: {'loading-mask': provisionalLoading()}"></div>
 <div class="flex relative" data-bind="visible: !openRelatedResources()" style="display:none;">
 
     <!--Form Listing -->
@@ -40,6 +41,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <div class="card-form-preview-container" data-bind="let: {'form': formView}, css: {'loading-mask': cardLoading()}">
         {% include 'views/resource/editor/form.htm' %}
     </div>
+
+    <!--Provisional Edit Listing -->
+    <div class="right-column-crud-container provisional-edits-list" data-bind="css: {'expanded': provisionalTileViewModel.edits().length > 0, 'closed': provisionalTileViewModel.edits().length == 0}">
+        {% include 'views/resource/editor/provisional-tile-manager.htm' %}
+    </div>
+
 
 </div>
 
@@ -65,7 +72,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             graph: {{graph_json}},
             relationship_types: {{ relationship_types }},
             displayName: '{{ displayname | escapejs }}',
-            resourceInstanceExists: '{{resource_instance_exists}}'
+            resourceInstanceExists: '{{resource_instance_exists}}',
+            userisreviewer: {{ user_is_reviewer }},
+            userid: '{{ userid }}'
         };
     });
     define('search-data', [], function() {

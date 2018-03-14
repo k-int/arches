@@ -39,7 +39,7 @@ from arches.app.utils.date_utils import ExtendedDateFormat
 from arches.app.search.search_engine_factory import SearchEngineFactory
 from arches.app.search.elasticsearch_dsl_builder import Bool, Match, Query, Nested, Term, Terms, GeoShape, Range, MinAgg, MaxAgg, RangeAgg, Aggregation, GeoHashGridAgg, GeoBoundsAgg, FiltersAgg, NestedAgg
 from arches.app.utils.data_management.resources.exporter import ResourceExporter
-from arches.app.views.base import BaseManagerView
+from arches.app.views.base import BaseManagerView, MapBaseManagerView
 from arches.app.views.concept import get_preflabel_from_conceptid
 from arches.app.datatypes.datatypes import DataTypeFactory
 from arches.app.utils.permission_backend import get_nodegroups_by_perm
@@ -50,11 +50,12 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-class SearchView(BaseManagerView):
+class SearchView(MapBaseManagerView):
 
     def get(self, request):
         saved_searches = JSONSerializer().serialize(settings.SAVED_SEARCHES)
         map_layers = models.MapLayer.objects.all()
+        map_markers = models.MapMarker.objects.all()
         map_sources = models.MapSource.objects.all()
         date_nodes = models.Node.objects.filter(datatype='date', graph__isresource=True, graph__isactive=True)
         resource_graphs = models.GraphModel.objects.exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID).exclude(isresource=False).exclude(isactive=False)
@@ -67,13 +68,13 @@ class SearchView(BaseManagerView):
         # only allow cards that the user has permission to read
         searchable_cards = []
         for card in resource_cards:
-            if request.user.has_perm('read_nodegroup', card.nodegroup):
+            if request.user.has_perm('read_nodegroup', card.nodegroup_id):
                 searchable_cards.append(card)
 
         # only allow date nodes that the user has permission to read
         searchable_date_nodes = []
         for node in date_nodes:
-            if request.user.has_perm('read_nodegroup', node.nodegroup):
+            if request.user.has_perm('read_nodegroup', node.nodegroup_id):
                 searchable_date_nodes.append(node)
 
         context = self.get_context_data(
@@ -82,6 +83,7 @@ class SearchView(BaseManagerView):
             saved_searches=saved_searches,
             date_nodes=searchable_date_nodes,
             map_layers=map_layers,
+            map_markers=map_markers,
             map_sources=map_sources,
             geocoding_providers=geocoding_providers,
             main_script='views/search',
@@ -154,7 +156,7 @@ def search_terms(request):
             ret.append({
                 'type': 'term',
                 'context': '',
-                'context_label': '',
+                'context_label': get_resource_model_label(result),
                 'id': i,
                 'text': result['key'],
                 'value': result['key']
@@ -163,6 +165,16 @@ def search_terms(request):
 
     return JSONResponse(ret)
 
+
+def get_resource_model_label(result):
+    if len(result['nodegroupid']['buckets']) > 0:
+        for nodegroup in result['nodegroupid']['buckets']:
+            nodegroup_id = nodegroup['key']
+            node = models.Node.objects.get(nodeid = nodegroup_id)
+            graph = node.graph
+        return "{0} - {1}".format(graph.name, node.name)
+    else:
+        return ''
 
 def select_geoms_for_results(features, geojson_nodes, user_is_reviewer):
     res = []
@@ -365,6 +377,7 @@ def build_search_results_dsl(request):
                     search_query.filter(nested_conceptid_filter)
 
     if 'features' in spatial_filter:
+
         if len(spatial_filter['features']) > 0:
             feature_geom = spatial_filter['features'][0]['geometry']
             feature_properties = spatial_filter['features'][0]['properties']
@@ -484,7 +497,7 @@ def build_search_results_dsl(request):
             for key, val in advanced_filter.iteritems():
                 if key != 'op':
                     node = models.Node.objects.get(pk=key)
-                    if request.user.has_perm('read_nodegroup', node.nodegroup):
+                    if request.user.has_perm('read_nodegroup', node.nodegroup_id):
                         datatype = datatype_factory.get_instance(node.datatype)
                         datatype.append_search_filters(val, node, tile_query, request)
             nested_query = Nested(path='tiles', query=tile_query)
@@ -508,7 +521,7 @@ def get_permitted_nodegroups(user):
 def get_nodegroups_by_datatype_and_perm(request, datatype, permission):
     nodes = []
     for node in models.Node.objects.filter(datatype=datatype):
-        if request.user.has_perm(permission, node.nodegroup):
+        if request.user.has_perm(permission, node.nodegroup_id):
             nodes.append(str(node.nodegroup_id))
     return nodes
 

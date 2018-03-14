@@ -41,7 +41,7 @@ from arches.app.models.system_settings import settings
 from arches.app.utils.data_management.resource_graphs.exporter import get_graphs_for_export, create_mapping_configuration_file
 from arches.app.utils.data_management.resource_graphs import importer as GraphImporter
 from arches.app.utils.system_metadata import system_metadata
-from arches.app.views.base import BaseManagerView
+from arches.app.views.base import BaseManagerView, MapBaseManagerView
 from tempfile import NamedTemporaryFile
 from guardian.shortcuts import get_perms_for_model, assign_perm, get_perms, remove_perm, get_group_perms, get_user_perms
 from rdflib import Graph as RDFGraph, RDF, RDFS
@@ -65,6 +65,18 @@ def get_ontology_namespaces():
 class GraphBaseView(BaseManagerView):
     def get_context_data(self, **kwargs):
         context = super(GraphBaseView, self).get_context_data(**kwargs)
+        try:
+            context['graphid'] = self.graph.graphid
+            context['graph'] = JSONSerializer().serializeToPython(self.graph)
+            context['graph_json'] = JSONSerializer().serialize(self.graph)
+            context['root_node'] = self.graph.node_set.get(istopnode=True)
+        except:
+            pass
+        return context
+
+class MapGraphBaseView(MapBaseManagerView):
+    def get_context_data(self, **kwargs):
+        context = super(MapGraphBaseView, self).get_context_data(**kwargs)
         try:
             context['graphid'] = self.graph.graphid
             context['graph'] = JSONSerializer().serializeToPython(self.graph)
@@ -157,7 +169,7 @@ class GraphManagerView(GraphBaseView):
 
         self.graph = Graph.objects.get(graphid=graphid)
         datatypes = models.DDataType.objects.all()
-        branch_graphs = Graph.objects.exclude(pk=graphid).exclude(isresource=True).exclude(isactive=False)
+        branch_graphs = Graph.objects.exclude(pk=graphid).exclude(isresource=True)
         if self.graph.ontology is not None:
             branch_graphs = branch_graphs.filter(ontology=self.graph.ontology)
         lang = request.GET.get('lang', settings.LANGUAGE_CODE)
@@ -329,7 +341,7 @@ class CardManagerView(GraphBaseView):
             cardid = card.cardid
             return redirect('card', cardid=cardid)
 
-        branch_graphs = Graph.objects.exclude(pk=graphid).exclude(isresource=True).exclude(isactive=False)
+        branch_graphs = Graph.objects.exclude(pk=graphid).exclude(isresource=True)
         if self.graph.ontology is not None:
             branch_graphs = branch_graphs.filter(ontology=self.graph.ontology)
 
@@ -345,7 +357,7 @@ class CardManagerView(GraphBaseView):
 
 
 @method_decorator(group_required('Graph Editor'), name='dispatch')
-class CardView(GraphBaseView):
+class CardView(MapGraphBaseView):
     def get(self, request, cardid):
         try:
             card = Card.objects.get(cardid=cardid)
@@ -365,6 +377,7 @@ class CardView(GraphBaseView):
         widgets = models.Widget.objects.all()
         geocoding_providers = models.Geocoder.objects.all()
         map_layers = models.MapLayer.objects.all()
+        map_markers = models.MapMarker.objects.all()
         map_sources = models.MapSource.objects.all()
         resource_graphs = Graph.objects.exclude(pk=card.graph_id).exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID).exclude(isresource=False).exclude(isactive=False)
         lang = request.GET.get('lang', settings.LANGUAGE_CODE)
@@ -386,6 +399,7 @@ class CardView(GraphBaseView):
             widgets=widgets,
             widgets_json=JSONSerializer().serialize(widgets),
             map_layers=map_layers,
+            map_markers=map_markers,
             map_sources=map_sources,
             resource_graphs=resource_graphs,
             concept_collections=concept_collections,
@@ -560,7 +574,7 @@ class ReportManagerView(GraphBaseView):
 
 
 @method_decorator(group_required('Graph Editor'), name='dispatch')
-class ReportEditorView(GraphBaseView):
+class ReportEditorView(MapGraphBaseView):
     def get(self, request, reportid):
         try:
             report = models.Report.objects.get(reportid=reportid)
@@ -569,6 +583,7 @@ class ReportEditorView(GraphBaseView):
             forms_x_cards = models.FormXCard.objects.filter(form__in=forms).order_by('sortorder')
             cards = Card.objects.filter(nodegroup__parentnodegroup=None, graph=self.graph)
             map_layers = models.MapLayer.objects.all()
+            map_markers = models.MapMarker.objects.all()
             map_sources = models.MapSource.objects.all()
             resource_graphs = Graph.objects.exclude(pk=report.graph.pk).exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID).exclude(isresource=False).exclude(isactive=False)
             datatypes = models.DDataType.objects.all()
@@ -588,6 +603,7 @@ class ReportEditorView(GraphBaseView):
                 cards=JSONSerializer().serialize(cards),
                 datatypes_json=JSONSerializer().serialize(datatypes),
                 map_layers=map_layers,
+                map_markers=map_markers,
                 map_sources=map_sources,
                 geocoding_providers=geocoding_providers,
                 resource_graphs=resource_graphs,

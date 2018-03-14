@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 '''
 
 import uuid
+import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseNotFound
 from django.http import HttpResponse
@@ -40,7 +41,7 @@ from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializ
 from arches.app.utils.response import JSONResponse
 from arches.app.search.search_engine_factory import SearchEngineFactory
 from arches.app.search.elasticsearch_dsl_builder import Query, Terms
-from arches.app.views.base import BaseManagerView
+from arches.app.views.base import BaseManagerView, MapBaseManagerView
 from arches.app.views.concept import Concept
 from arches.app.datatypes.datatypes import DataTypeFactory
 from elasticsearch import Elasticsearch
@@ -71,7 +72,7 @@ def get_resource_relationship_types():
     return relationship_type_values
 
 @method_decorator(can_edit_resource_instance(), name='dispatch')
-class ResourceEditorView(BaseManagerView):
+class ResourceEditorView(MapBaseManagerView):
     action = None
     def get(self, request, graphid=None, resourceid=None, view_template='views/resource/editor.htm', main_script='views/resource/editor', nav_menu=True):
         if self.action == 'copy':
@@ -102,6 +103,7 @@ class ResourceEditorView(BaseManagerView):
             datatypes = models.DDataType.objects.all()
             widgets = models.Widget.objects.all()
             map_layers = models.MapLayer.objects.all()
+            map_markers = models.MapMarker.objects.all()
             map_sources = models.MapSource.objects.all()
             geocoding_providers = models.Geocoder.objects.all()
             forms = graph.form_set.filter(visible=True)
@@ -110,7 +112,7 @@ class ResourceEditorView(BaseManagerView):
             required_widgets = []
 
             for form_x_card in forms_x_cards:
-                if request.user.has_perm('read_nodegroup', form_x_card.card.nodegroup):
+                if request.user.has_perm('read_nodegroup', form_x_card.card.nodegroup_id):
                     forms_w_cards.append(form_x_card.form)
 
             widget_datatypes = [v.datatype for k, v in graph.nodes.iteritems()]
@@ -139,6 +141,7 @@ class ResourceEditorView(BaseManagerView):
                 widgets=widgets,
                 date_nodes=date_nodes,
                 map_layers=map_layers,
+                map_markers=map_markers,
                 map_sources=map_sources,
                 geocoding_providers = geocoding_providers,
                 widgets_json=JSONSerializer().serialize(widgets),
@@ -149,7 +152,9 @@ class ResourceEditorView(BaseManagerView):
                 resource_cards=JSONSerializer().serialize(resource_cards, exclude=['description','instructions','active','isvisible']),
                 searchable_nodes=JSONSerializer().serialize(searchable_nodes, exclude=['description', 'ontologyclass','isrequired', 'issearchable', 'istopnode']),
                 saved_searches=JSONSerializer().serialize(settings.SAVED_SEARCHES),
-                resource_instance_exists=resource_instance_exists
+                resource_instance_exists=resource_instance_exists,
+                user_is_reviewer=json.dumps(request.user.groups.filter(name='Resource Reviewer').exists()),
+                userid=request.user.id
             )
 
             if graph.iconclass:
@@ -243,7 +248,7 @@ class ResourceEditLogView(BaseManagerView):
             for edit in edits:
                 if edit.nodegroupid != None:
                     nodegroup = models.NodeGroup.objects.get(pk=edit.nodegroupid)
-                    if request.user.has_perm('read_nodegroup', nodegroup):
+                    if request.user.has_perm('read_nodegroup', nodegroup_id):
                         if edit.newvalue != None:
                             self.getEditConceptValue(edit.newvalue)
                         if edit.oldvalue != None:
@@ -304,7 +309,7 @@ class ResourceTiles(View):
             tiles = tiles.filter(nodegroup=node.nodegroup)
 
         for tile in tiles:
-            if request.user.has_perm(perm, tile.nodegroup):
+            if request.user.has_perm(perm, tile.nodegroup_id):
                 tile = Tile.objects.get(pk=tile.tileid)
                 tile.filter_by_perm(request.user, perm)
                 tile_dict = model_to_dict(tile)
@@ -350,7 +355,7 @@ class ResourceDescriptors(View):
 
         return HttpResponseNotFound()
 
-class ResourceReportView(BaseManagerView):
+class ResourceReportView(MapBaseManagerView):
     def get(self, request, resourceid=None):
         lang = request.GET.get('lang', settings.LANGUAGE_CODE)
         resource = Resource.objects.get(pk=resourceid)
@@ -390,13 +395,13 @@ class ResourceReportView(BaseManagerView):
         perm = 'read_nodegroup'
 
         for card in cards:
-            if request.user.has_perm(perm, card.nodegroup):
+            if request.user.has_perm(perm, card.nodegroup_id):
                 matching_forms_x_card = filter(lambda forms_x_card: card.nodegroup_id == forms_x_card.card.nodegroup_id, forms_x_cards)
                 card.filter_by_perm(request.user, perm)
                 permitted_cards.append(card)
 
         for tile in tiles:
-            if request.user.has_perm(perm, tile.nodegroup):
+            if request.user.has_perm(perm, tile.nodegroup_id):
                 tile.filter_by_perm(request.user, perm)
                 permitted_tiles.append(tile)
 
@@ -405,9 +410,11 @@ class ResourceReportView(BaseManagerView):
 
         if str(report.template.templateid) == '50000000-0000-0000-0000-000000000002':
             map_layers = models.MapLayer.objects.all()
+            map_markers = models.MapMarker.objects.all()
             map_sources = models.MapSource.objects.all()
             geocoding_providers = models.Geocoder.objects.all()
         else:
+            map_markers=None
             map_layers = []
             map_sources = []
             geocoding_providers = []
@@ -428,6 +435,7 @@ class ResourceReportView(BaseManagerView):
             related_resources=JSONSerializer().serialize(related_resource_summary, sort_keys=False),
             widgets=widgets,
             map_layers=map_layers,
+            map_markers=map_markers,
             map_sources=map_sources,
             graph_id=resource.graph.pk,
             graph_name=resource.graph.name,

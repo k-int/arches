@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 '''
 
 import json
+import couchdb
 from datetime import datetime
 from django.db import transaction
 from django.shortcuts import render
@@ -39,11 +40,10 @@ from arches.app.models import models
 from arches.app.models.card import Card
 from arches.app.models.mobile_survey import MobileSurvey
 from arches.app.models.system_settings import settings
-from arches.app.views.base import BaseManagerView
+from arches.app.views.base import MapBaseManagerView
 
 @method_decorator(group_required('Application Administrator'), name='dispatch')
-class MobileSurveyManagerView(BaseManagerView):
-
+class MobileSurveyManagerView(MapBaseManagerView):
 
     def get(self, request):
 
@@ -73,6 +73,7 @@ class MobileSurveyManagerView(BaseManagerView):
             identities.append({'name': user.email or user.username, 'groups': ', '.join(groups), 'type': 'user', 'id': user.pk, 'default_permissions': set(default_perms), 'is_superuser':user.is_superuser, 'group_ids': group_ids, 'first_name': user.first_name, 'last_name': user.last_name, 'email': user.email})
 
         map_layers = models.MapLayer.objects.all()
+        map_markers = models.MapMarker.objects.all()
         map_sources = models.MapSource.objects.all()
         geocoding_providers = models.Geocoder.objects.all()
 
@@ -91,6 +92,7 @@ class MobileSurveyManagerView(BaseManagerView):
         serializer = JSONSerializer()
         context = self.get_context_data(
             map_layers=map_layers,
+            map_markers=map_markers,
             map_sources=map_sources,
             geocoding_providers=geocoding_providers,
             mobile_surveys=serializer.serialize(mobile_surveys, sort_keys=False),
@@ -201,6 +203,14 @@ class MobileSurveyManagerView(BaseManagerView):
 
         with transaction.atomic():
             mobile_survey.save()
+
+            # try and create a couchdb for the project
+            couch = couchdb.Server(settings.COUCHDB_URL)
+            try:
+                db = couch['project_' + str(mobile_survey.id)]
+            except couchdb.ResourceNotFound:
+                db = couch.create('project_' + str(mobile_survey.id))
+
 
         ordered_cards = models.MobileSurveyXCard.objects.filter(mobile_survey=mobile_survey).order_by('sortorder')
         ordered_ids = [unicode(mpc.card.cardid) for mpc in ordered_cards]

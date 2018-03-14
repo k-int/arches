@@ -266,6 +266,11 @@
     padding: 5px 0 0;
 }
 
+.tab-content.card-content-tab.form-settings {
+  margin-left: 0;
+  margin-top: 25px;
+}
+
 .card-panel-body {
     background-color: #FFF;
     padding-top: 15px;
@@ -1019,6 +1024,11 @@ a.select2-search-choice-close {
     font-weight: 600;
 }
 
+.disabled .listitem_name {
+    font-weight: 600;
+    color: #999;
+}
+
 .selected div .name {
     font-weight: 600;
 }
@@ -1029,10 +1039,25 @@ a.select2-search-choice-close {
     cursor: default;
 }
 
+.library-card.permissions.selected.selected-card {
+    background: #fff;
+    color: #656665;
+    border-left: 0px;
+    cursor: default;
+}
+
 .library-card:hover {
     background-color: #fff;
     cursor: pointer;
     border-left: 5px solid steelblue;
+    opacity: 1.0;
+}
+
+
+.library-card.permissions.library-card-wide:hover {
+    background-color: #fff;
+    cursor: pointer;
+    border-left: 0px;
     opacity: 1.0;
 }
 
@@ -1170,6 +1195,98 @@ a.select2-search-choice-close {
     margin-left: 5px;
 }
 
+.selected-group-user-permissions {
+    position: absolute;
+    left: 30px;
+    width: 100%;
+}
+
+.permissions-options {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-checkbox.form-normal.form-primary.permission-option {
+    padding-left: 22px;
+    padding-bottom: 5px;
+}
+
+.selected-group-user-permissions .library-icon-permissions {
+    top: 0px;
+}
+
+.permission-manager {
+    background-color: white;
+}
+
+.permission-manager.panel-body {
+    display: flex;
+    background-color: white;
+    margin: 1px;
+    height: 675px;
+}
+
+.permission-manager .card-content-container {
+    padding: 10px 50px 10px;
+    background-color: white;
+}
+
+.permission-manager-filter {
+    height: 58px;
+    width: 100%;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-bottom-color: #ccc;
+    margin-bottom: 2px;
+}
+
+.permission-manager-filter .clear-selection a.clear-selection-link {
+    padding-right: 5px;
+    font-size: 13px;
+}
+
+.permission-manager-filter .clear-node-search {
+    position: absolute;
+    top: 22px;
+    font-size: 14px;
+    left: 46%;
+    width: 15px;
+}
+
+.permission-manager-item-list .card-tree-container {
+    margin-right: 0px;
+}
+
+.permission-manager .filter-bar {
+    display: flex;
+    flex-direction: row;
+    padding: 15px;
+}
+
+.permission-manager {
+    background-color: #f4f4f4;
+    margin-left: 1px;
+}
+
+.permission-manager-item-list {
+    padding-left: 10px;
+}
+
+.permission-manager.header {
+    position: relative;
+    height: 100px;
+    margin-left: 2px;
+    padding-left: 10px;
+    color: #2b425b;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
+
+.permission-manager .control-panel {
+    display: flex;
+    margin-left: 15px;
+}
+
 .permission-level-icon {
     height: 20px;
     margin-top: -5px;
@@ -1220,22 +1337,41 @@ a.select2-search-choice-close {
     padding-top: 6px;
     padding-bottom: 6px;
     padding-left: 10px;
-    margin-left: -20px;
     margin-right: 10px;
-    border-left: 1px solid #ddd;
-    border-right: 1px solid #ddd;
+}
+
+.account-card-main {
+    width: 220px;
+    position: absolute;
+    left: 17px;
+    top: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.account-card-main a {
+    padding-left: 4px;
+}
+
+.account-card-subtitle {
+    width: 190px;
+    position: absolute;
+    left: 17px;
+    top: 25px;
+    padding: 4px 2px 3px 0px;
+    color: #8ba2b9;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .permissions-node-row:nth-child(even) {
     background: #f9f9f9;
-}
-
-.permissions-node-row:first-child {
-    border-top: 1px solid #ddd;
-}
-
-.permissions-node-row:last-child {
-    border-bottom: 1px solid #ddd;
 }
 
 .index-selector {
@@ -1278,6 +1414,7 @@ a.select2-search-choice-close {
     padding-bottom: 15px;
     margin-bottom: 10px;
     background: #fff;
+    width: 100%;
 }
 
 .permissions-list-divider {
@@ -1290,11 +1427,6 @@ a.select2-search-choice-close {
     line-height: 1.2;
     padding-left: 15px;
     font-size: 15px;
-}
-
-.node-list-panel {
-    margin-top: 50px;
-    padding-left: 15px;
 }
 
 .library-search {
@@ -5181,6 +5313,82 @@ ul div .card-tree-list span .card-tree-list-item .card-tree-list-icon {
     border-top: none;
 }
 
+.provisional-edits {
+    pointer-events: none;
+    cursor: default;
+    padding: 3px 5px 5px 5px;
+    margin-right: 10px;
+    background: #F5BB25;
+    color: #fff;
+}
+
+.provisional-edits-list {
+    width: 0px;
+    background-color: #f0f0f0;
+    padding: 0px;
+    border-style: solid;
+    border-color: #ccc;
+    border-width: 1px;
+    margin-top: 0px;
+}
+
+.provisional-edits-list-header {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    background-color: #f8f8f8;
+    height: 35px;
+    margin-top: 0px;
+    margin-bottom:1px;
+}
+
+.provisional-edits-list-header span {
+    padding-left: 4px;
+
+}
+
+.provisional-edit-qa-tool {
+    height: 28px;
+}
+
+.provisional-edit-qa-tool .toggle-container {
+    padding-left: 0px;
+}
+
+.provisional-edits-list.expanded {
+    width: 350px;
+    transition: all .30s ease;
+    padding: 0px;
+    border-top-width: 0px;
+}
+
+.provisional-edits-list.closed {
+    width: 0px;
+    transition: all .30s ease;
+    padding: 0px
+}
+
+.provisional-edit {
+    padding: 15px;
+    background-color: #fafafa;
+}
+
+.rp-report-tile.provisional-edit-cards {
+    padding-left: 0px;
+    padding-bottom: 0px;
+}
+
+
+.provisional-edit .content-title {
+    font-weight: 600;
+}
+
+.provisional-edit-cards dd {
+    position: relative;
+    padding-left: 15px;
+    word-wrap: break-word;
+}
+
 .layer-list {
     height: 50px;
     margin-right: -10px;
@@ -5461,6 +5669,15 @@ ul div .card-tree-list span .card-tree-list-item .card-tree-list-icon {
     opacity: .9;
     margin: 3px;
 }
+
+.data-widget-grid-item .disabled {
+    color: #999;
+}
+
+.data-widget-grid-item.disabled {
+    color: #999;
+}
+
 
 .data-widget-grid-item:hover {
     cursor: move;
@@ -6853,7 +7070,7 @@ div.row.widget-wrapper.report-header:hover {
     padding: 10px 25px;
     width: calc(100% - 325px);
     background: #fcfcfc;
-    height: calc(100vh - 35px);
+    /*height: calc(100vh - 35px);*/
     border: 1px solid #bbb;
     z-index: 1100;
 }
@@ -6862,6 +7079,11 @@ div.row.widget-wrapper.report-header:hover {
     margin-left: 10px;
     margin-right: 0px;
     border-top-width: 0px;
+}
+
+#overlay-grid.grid {
+    height: 1600px;
+    overflow-y: scroll;
 }
 
 .overlay-selection-container.selector-closed {
@@ -6894,8 +7116,8 @@ div.row.widget-wrapper.report-header:hover {
     padding-top: 0px;
     padding-left: 0px;
     padding-bottom: 5px;
-    height: 100vh;
-    overflow-y: auto;
+    height: 1000px;
+    overflow-y: scroll;
 }
 
 .overlay-filter {
@@ -8692,6 +8914,43 @@ ul.pagination {
 .search-listing-title.provisional-edits {
     font-size: 12px;
     color: #888;
+}
+
+.provisional-tile.qa-btn {
+    float: right;
+    margin-right: 30px;
+    margin-top: 3px;
+    font-weight: 500;
+}
+
+.provisional-tile.qa-btn:hover {
+    cursor: pointer;
+}
+
+.selected-provisional-tile {
+    border-color: #3B8DD5;
+    z-index: 1;
+    border-style: solid;
+    border-width: 1px;
+    padding-top: 5px;
+    padding-left: 5px;
+    padding-bottom: 3px;
+}
+
+.provisional-tile.icon {
+    padding-left: 7px;
+    font-size: 11px;
+    color: #f1b202;
+}
+
+.provisional-tile.icon.submitted {
+    color: green;
+}
+
+.provisional-tile.icon.authoritative {
+    padding-left: 7px;
+    font-size: 11px;
+    color: #ccc;
 }
 
 .search-listing-body {
