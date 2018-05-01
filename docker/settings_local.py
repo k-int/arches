@@ -62,3 +62,9 @@ if USER_SECRET_KEY:
     SECRET_KEY = USER_SECRET_KEY
 
 STATIC_ROOT = '/static_root'
+
+CACHES = {
+  'default': {
+    'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+  }
+}
