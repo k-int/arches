@@ -19,10 +19,19 @@ def get_optional_env_variable(var_name):
     except KeyError:
         return None
 
+
+DATE_IMPORT_EXPORT_FORMAT='%d/%m/%Y'
+ANALYSIS_COORDINATE_SYSTEM_SRID = 27700
 MODE = get_env_variable('DJANGO_MODE') #options are either "PROD" or "DEV" (installing with Dev mode set, get's you extra dependencies)
 DEBUG = ast.literal_eval(get_env_variable('DJANGO_DEBUG'))
 
 COUCHDB_URL = 'http://{}:{}@{}:{}'.format(get_env_variable('COUCHDB_USER'), get_env_variable('COUCHDB_PASS'),get_env_variable('COUCHDB_HOST'), get_env_variable('COUCHDB_PORT')) # defaults to localhost:5984
+
+PREFERRED_COORDINATE_SYSTEMS = (
+  {"name": "Geographic", "srid": "4326", "proj4": "+proj=longlat +datum=WGS84 +no_defs", "default": True}, #Required
+  {"name": "British National Grid", "srid": "27700", "proj4": "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs", "default": False},
+)
+
 
 DATABASES = {
     'default': {
