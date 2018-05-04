@@ -1,0 +1,31 @@
+@mixin bottomOverlay() {
+  position:absolute;
+  width:100%;
+  bottom:0;
+  margin:0;
+  background: $overlay-background none;
+  color: $overlay-text-color;
+}
+
+.title-bar {
+  background: $title-bar-background none;
+  color: $title-bar-text;
+  padding: ($line-height-computed * 0.5);
+  
+  h2,h3,h4,h5,h6 {
+    
+    margin :0;
+    padding:0;
+    font-size: 1.5em;
+    
+    &:before {
+      font-size: 3em;
+      margin-left: 0;
+    }
+  }
+}
+
+.background-secondary {
+  background: $brand-secondary;
+  color: $inverse-text-color;
+}

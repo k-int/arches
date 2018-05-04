@@ -1,0 +1,38 @@
+section.intro {
+    
+  .image {
+    position: relative;
+    z-index:0;
+    img {
+      width: 100%;
+      margin-top: -25%;
+    }
+    max-height: $intro-max-height;
+    overflow: hidden;
+    
+    .caption {
+      @include bottomOverlay;
+      padding: $intro-caption-padding-top 0 $intro-caption-padding-bottom 0;
+      font-size: $intro-caption-font-size;
+        
+      > .container {
+        
+        position: relative;
+        
+        > div:before {
+        
+          color: $intro-icon-color;
+          position:absolute;
+          left:0;
+          top: $intro-icon-overlay-top;
+          font-size: $intro-icon-overlay-size;
+          margin: 0;
+        }
+      }
+    }
+  
+    font-weight: bold;
+    border: $intro-border-width solid $intro-border-color;
+    border-width: 0 0 $intro-border-width 0;
+  }
+}

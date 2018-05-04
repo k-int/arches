@@ -1,0 +1,8 @@
+footer {
+  font-size: $footer-font-size;
+  background: $footer-background none;
+  color: $footer-font-color;
+  line-height: $footer-font-size;
+  padding: $line-height-computed $line-height-computed ($line-height-computed * 0.5) $line-height-computed;
+  margin: 1px 0 0 0;
+}

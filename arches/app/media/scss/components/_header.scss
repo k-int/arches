@@ -1,0 +1,107 @@
+body {
+  margin-top: $header-img-height;
+}
+
+header {
+  display:block;
+  position: fixed;
+  top: 0;
+  width: $header-width;
+  z-index: $zindex-navbar-fixed;
+  background: $header-background none;
+  border: $header-border-width solid $header-border-color;
+  border-width: 0 0 $header-border-width 0;
+  padding: 0;
+  color: $header-text-color;
+  min-height: $header-img-height;
+
+  nav {
+    position: relative;
+    min-height: $header-img-height;
+    font-size: floor(($font-size-base * 1.5));
+    @include clearfix;
+  }
+
+  .navbar-brand {
+    @include size(floor($header-img-width * 0.5), floor($header-img-height * 0.5));
+    position:relative;
+    img {
+      position:absolute;
+      width:100%;
+      top:0;
+      bottom:0;
+      margin:auto;
+    }
+  }
+
+  .navbar-nav {
+    > li {
+      float:left;
+      
+      a {
+        color: $header-text-color;
+        background: $header-background none;
+        &:link,
+        &:visited {
+          color: $header-text-color;
+          background: $header-background none;
+        }
+        &:active,
+        &:hover {
+          background: $header-text-color none;
+          color: $header-background;
+        }
+        
+        & > i {
+          margin:0;
+          padding:0;
+          font-size: (floor(($font-size-base * 1.5)) - 1px);
+          line-height: inherit;
+        }
+      }
+      
+      &.active a {
+        &:link,
+        &:visited {
+          background: $header-text-color none;
+          color: $header-background;
+        }
+      }     
+      
+    }
+    float:right;
+    right:0;
+    margin:0;
+    bottom:0;
+    position: absolute;
+    bottom:0;
+    max-width: 65%;
+  }
+}
+
+@media (min-width: $screen-sm-min) {
+  header {
+    .navbar-brand {
+      @include size($header-img-width, $header-img-height);
+    }
+  }
+}
+
+@media (min-width: $screen-lg-min) {
+  header {
+    text-align: center;
+
+    .navbar-brand {
+      float: none;
+      display: block;
+      position: absolute;
+      margin-left: -($header-img-width / 2) !important;
+      padding: 0;
+      left: 50%;
+    }
+    .navbar-nav {
+      max-width: 45%;
+    }
+  }
+}
+
