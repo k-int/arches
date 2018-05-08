@@ -1,0 +1,40 @@
+.col-layout {
+  padding-top: ($line-height-computed * 3);
+  padding-bottom: ($line-height-computed * 1.5);
+    
+  h4, h3 {
+    margin-top: 0;
+  }
+
+  h3 {
+    margin-bottom: ($line-height-computed * 1.5)
+  }
+  
+  .callouts {
+    
+    img {
+      max-height: 5em;
+      max-widtH:100%;
+    }
+    
+    > div {
+      margin: ($line-height-computed * 1.5)  0 ($line-height-computed * 3) 0;
+      positition: relative;
+      > h4 {
+        &[class^="aa-icon-"]:before,
+        &[class*=" aa-icon-"]:before {
+          
+          position: absolute;
+          font-size: 3em;
+          left: -1.5em;
+          margin-top:-0.1em;
+        
+          @media (min-width: $screen-sm-min) {
+            
+            font-size: 6em;
+          } 
+        }
+      }
+    }
+  }
+}

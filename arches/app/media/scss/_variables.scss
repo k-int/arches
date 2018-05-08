@@ -1,0 +1,45 @@
+$brand-primary: #2c3647;
+$brand-primary-compliment: #565e6c;
+$brand-primary-compliment2: #5d5d5d;
+$brand-primary-compliment3: #abafb5;
+$brand-secondary: #ce9b0a;
+$inverse-text-color: #fff; 
+$header-width: 100%;
+
+$overlay-background: rgba($brand-primary, 0.5);
+$overlay-text-color: $inverse-text-color;
+
+/**** HEADER ****/
+$header-background: $brand-primary;
+$header-text-color: $inverse-text-color;
+$header-border-color: $brand-secondary;
+$header-border-width: 5px;
+
+/**** Title Bar ****/
+$title-bar-background: $brand-primary-compliment3;
+$title-bar-text: $inverse-text-color;
+
+/**** Footer ****/
+$footer-font-size: floor(($font-size-base * 0.7));
+$footer-font-color: $inverse-text-color;
+$footer-background: $brand-primary-compliment2;
+
+$header-img-height: 150px;
+$header-img-width: 200px;
+
+/*** HOME INTRO ***/
+$intro-border-color: $brand-secondary;
+$intro-border-width: 5px;
+$intro-max-height: 500px;
+
+$intro-caption-padding-top: ($line-height-computed * 0.75);
+$intro-caption-padding-bottom: ($line-height-computed * 0.25);
+$intro-caption-font-size: floor(($font-size-base * 1.7));
+$intro-icon-color: $overlay-background;
+$intro-icon-overlay-size: $intro-max-height - $header-img-height - ($intro-caption-padding-top * 2.5) - $intro-caption-font-size - (4 * $intro-border-width);
+$intro-icon-overlay-top: -$intro-icon-overlay-size;
+
+/** HOME INTRO ABOUT **/ 
+$intro-about-background: $brand-primary;
+$intro-about-text-color: $inverse-text-color;
+
