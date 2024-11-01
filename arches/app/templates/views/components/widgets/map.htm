@@ -24,9 +24,20 @@
 </dd>
 <!-- /ko -->
 <!-- ko ifnot: summaryDetails.length === 0  -->
-<dd data-bind="foreach: summaryDetails, class: nodeCssClasses">
-    <div style='margin-bottom:2px' data-bind="text: JSON.stringify($data.geometry)"></div>
-</dd>
+<ul data-bind="foreach: summaryDetails, class: nodeCssClasses" style="list-style-type: none; margin-top:5px; padding-left: 0px;">
+    <li style='margin-bottom:12px;'>
+        <ul style="list-style-type: none;">
+            <li style='margin-bottom:2px;'>
+                <span style="font-weight: bold;">Type: </span>
+                <span data-bind="text: $data.geometry['type']"></span>
+            </li>
+            <li style='margin-bottom:2px;'>
+                <span style="font-weight: bold;">Coordinates: </span>
+                <span data-bind="text: JSON.stringify($data.geometry['coordinates'])"></span>
+            </li>
+        </ul>
+    </li>
+</ul>
 <!-- /ko -->
 {% endblock report %}
 

@@ -84,6 +84,27 @@ define([
         if (ko.unwrap(this.value) !== null) {
             this.summaryDetails = koMapping.toJS(this.value).features || [];
         }
+        
+        // for (i = 0; i < ko.unwrap(this.summaryDetails).length; i++){
+        //     console.log("here", JSON.stringify(ko.unwrap(this.summaryDetails)[i]["geometry"]["coordinates"]))
+        // }
+
+        // this.formattedSummaryDetails = ko.computed(function () {
+        //     let summaryDetailsArray = ko.unwrap(this.summaryDetails)
+
+        //         let formattedSummaryDetails = summaryDetailsArray.map(feature => {
+        //             let geometry = feature["geometry"]
+        //             let formatted_coords = geometry[coordinates]
+
+
+        //             return (`Type: ${geometry["type"]}\nCoordinates: ${geometry["coordinates"]}\n`)
+        //         });
+
+        //         return formattedSummaryDetails.join('\n')
+
+        // }, this);
+
+        // console.log("here", this.formattedSummaryDetails())
 
         if (this.centerX() == 0 && this.centerY() == 0 && this.zoom() == 0) {
             this.centerX(arches.mapDefaultX);
