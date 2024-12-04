@@ -14,9 +14,9 @@ define([
     'bindings/mapbox-gl',
     'bindings/color-picker',
     'bindings/key-events-click',
-], function(_, ko, koMapping, arches, WidgetViewModel, MapEditorViewModel, mapWidgetTemplate, mapWidgetEditorTemplate) {
-    var viewModel = function(params) {
-         
+], function (_, ko, koMapping, arches, WidgetViewModel, MapEditorViewModel, mapWidgetTemplate, mapWidgetEditorTemplate) {
+    var viewModel = function (params) {
+
         this.context = params.type;
 
         this.summaryDetails = [];
@@ -52,14 +52,14 @@ define([
         WidgetViewModel.apply(this, [params]);
 
         this.geometryTypeList = ko.computed({
-            read: function() {
+            read: function () {
                 var geometryTypes = this.geometryTypes() || [];
-                return geometryTypes.map(function(type) {
+                return geometryTypes.map(function (type) {
                     return ko.unwrap(type.id);
                 });
             },
-            write: function(value) {
-                this.geometryTypes(value.map(function(type) {
+            write: function (value) {
+                this.geometryTypes(value.map(function (type) {
                     return {
                         id: type,
                         text: type
@@ -69,7 +69,7 @@ define([
             owner: this
         });
 
-        this.displayValue = ko.computed(function() {
+        this.displayValue = ko.computed(function () {
             var value = koMapping.toJS(this.value);
             if (!value || !value.features) {
                 return 0;
@@ -84,7 +84,37 @@ define([
         if (ko.unwrap(this.value) !== null) {
             this.summaryDetails = koMapping.toJS(this.value).features || [];
         }
-        
+
+        console.log("summary details", this.summaryDetails)
+
+        this.formattedSummaryDetails = ko.computed(function () {
+
+            geometry_type_counts = {
+                points: 0,
+                lines: 0,
+                polygons: 0
+            }
+
+            this.summaryDetails.forEach(geometry => {
+
+                switch (geometry["geometry"]["type"]) {
+                    case "Point":
+                        geometry_type_counts["points"]++
+                        break
+                    case "LineString":
+                        geometry_type_counts["lines"]++
+                        break
+                    case "Polygon":
+                        geometry_type_counts["polygons"]++
+                        break
+                }
+            })
+
+            return geometry_type_counts
+        }, this)
+
+        console.log(ko.unwrap(this.formattedSummaryDetails))
+
         // for (i = 0; i < ko.unwrap(this.summaryDetails).length; i++){
         //     console.log("here", JSON.stringify(ko.unwrap(this.summaryDetails)[i]["geometry"]["coordinates"]))
         // }

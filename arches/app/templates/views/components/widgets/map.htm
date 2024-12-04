@@ -24,7 +24,7 @@
 </dd>
 <!-- /ko -->
 <!-- ko ifnot: summaryDetails.length === 0  -->
-<ul data-bind="foreach: summaryDetails, class: nodeCssClasses" style="list-style-type: none; margin-top:5px; padding-left: 0px;">
+<!-- <ul data-bind="foreach: summaryDetails, class: nodeCssClasses" style="list-style-type: none; margin-top:5px; padding-left: 0px;">
     <li style='margin-bottom:12px;'>
         <ul style="list-style-type: none;">
             <li style='margin-bottom:2px;'>
@@ -36,6 +36,23 @@
                 <span data-bind="text: JSON.stringify($data.geometry['coordinates'])"></span>
             </li>
         </ul>
+    </li>
+</ul> -->
+<!-- /ko -->
+
+<!-- ko ifnot: summaryDetails.length === 0  -->
+<ul data-bind="with: formattedSummaryDetails, class: nodeCssClasses" style="list-style-type: none; margin-top:5px; padding-left: 0px;">
+    <li style='margin-bottom:8px;'>
+        <span data-bind="text: points"></span>
+        <span>Points: </span>
+    </li>
+    <li style='margin-bottom:8px;'>
+        <span data-bind="text: lines"></span>
+        <span>Lines: </span>
+    </li>
+    <li style='margin-bottom:8px;'>
+        <span data-bind="text: polygons"></span>
+        <span>Polygons: </span>
     </li>
 </ul>
 <!-- /ko -->
