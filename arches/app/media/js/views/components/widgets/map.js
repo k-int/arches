@@ -7,6 +7,7 @@ define([
     'viewmodels/map-editor',
     'templates/views/components/widgets/map.htm',
     'templates/views/components/map-widget-editor.htm',
+    'turf',
     'bindings/chosen',
     'bindings/codemirror',
     'select-woo',
@@ -14,8 +15,10 @@ define([
     'bindings/mapbox-gl',
     'bindings/color-picker',
     'bindings/key-events-click',
-], function (_, ko, koMapping, arches, WidgetViewModel, MapEditorViewModel, mapWidgetTemplate, mapWidgetEditorTemplate) {
+], function (_, ko, koMapping, arches, WidgetViewModel, MapEditorViewModel, mapWidgetTemplate, mapWidgetEditorTemplate, turf) {
     var viewModel = function (params) {
+
+        let self = this
 
         this.context = params.type;
 
@@ -85,56 +88,79 @@ define([
             this.summaryDetails = koMapping.toJS(this.value).features || [];
         }
 
-        console.log("summary details", this.summaryDetails)
+        this.pointExpanded = ko.observable(false);
+        this.lineStringExpanded = ko.observable(false);
+        this.polygonExpanded = ko.observable(false);
 
-        this.formattedSummaryDetails = ko.computed(function () {
-
-            geometry_type_counts = {
-                points: 0,
-                lines: 0,
-                polygons: 0
+        this.geometryTypeCounts = ko.computed(function () {
+            let geometry_type_counts = {
+                point: 0,
+                lineString: 0,
+                polygon: 0
             }
 
             this.summaryDetails.forEach(geometry => {
-
-                switch (geometry["geometry"]["type"]) {
-                    case "Point":
-                        geometry_type_counts["points"]++
-                        break
-                    case "LineString":
-                        geometry_type_counts["lines"]++
-                        break
-                    case "Polygon":
-                        geometry_type_counts["polygons"]++
-                        break
-                }
+                let geometry_type = geometry["geometry"]["type"]
+                geometry_type_counts[geometry_type[0].toLowerCase() + geometry_type.slice(1)] ++
             })
 
             return geometry_type_counts
         }, this)
 
-        console.log(ko.unwrap(this.formattedSummaryDetails))
+        this.polygonBulletPoints = ko.computed(function () {
+            let polygonBulletPoints = []
 
-        // for (i = 0; i < ko.unwrap(this.summaryDetails).length; i++){
-        //     console.log("here", JSON.stringify(ko.unwrap(this.summaryDetails)[i]["geometry"]["coordinates"]))
-        // }
+            this.summaryDetails.forEach(geometry => {
+                if (geometry["geometry"]["type"] == "Polygon") {
+                    const polygon = turf.polygon(geometry["geometry"]['coordinates']);
+                    const centroid = turf.centroid(polygon)
+                    const centroidCoords = centroid.geometry.coordinates.map(x => x.toFixed(4))
+                    const polygonText = `Polygon ${polygonBulletPoints.length + 1}: [${centroidCoords[0]}, ${centroidCoords[1]}] (centre point)`
+                    polygonBulletPoints.push(polygonText); 
+                }
+            })
+            return polygonBulletPoints
+        }, this)
 
-        // this.formattedSummaryDetails = ko.computed(function () {
-        //     let summaryDetailsArray = ko.unwrap(this.summaryDetails)
+        this.lineStringBulletPoints = ko.computed(function () {
+            let lineStringBulletPoints = []
 
-        //         let formattedSummaryDetails = summaryDetailsArray.map(feature => {
-        //             let geometry = feature["geometry"]
-        //             let formatted_coords = geometry[coordinates]
+            this.summaryDetails.forEach(geometry => {
+                if (geometry["geometry"]["type"] == "LineString") {
+                    const lineString = turf.lineString(geometry["geometry"]['coordinates']);
+                    const lineStringLength = turf.length(lineString, { units: 'kilometers' });
+                    const lineStringMidpoint = turf.along(lineString, lineStringLength / 2, {units: 'kilometers'});
+                    const midpointCoords = lineStringMidpoint.geometry.coordinates.map(x => x.toFixed(4));
+                    const lineStringText = `LineString ${lineStringBulletPoints.length + 1}: [${midpointCoords[0]}, ${midpointCoords[1]}] (mid-point)`
+                    lineStringBulletPoints.push(lineStringText); 
+                }
+            })
+            return lineStringBulletPoints
+        }, this)
 
+        this.pointBulletPoints = ko.computed(function () {
+            let pointBulletPoints = []
 
-        //             return (`Type: ${geometry["type"]}\nCoordinates: ${geometry["coordinates"]}\n`)
-        //         });
+            this.summaryDetails.forEach(geometry => {
+                if (geometry["geometry"]["type"] == "Point") {
+                    let pointCoordinates = geometry["geometry"]['coordinates'].map(x => x.toFixed(4))
+                    const pointText = `Point ${pointBulletPoints.length + 1}: [${pointCoordinates[0]}, ${pointCoordinates[1]}]`
+                    pointBulletPoints.push(pointText); 
+                }
+            })
+            return pointBulletPoints
+        }, this)
 
-        //         return formattedSummaryDetails.join('\n')
+        this.showCopyText = ko.observable(false);
 
-        // }, this);
-
-        // console.log("here", this.formattedSummaryDetails())
+        this.copyGeoJSON = function() {
+            self.showCopyText(true);
+            console.log(this.showCopyText())
+            window.setTimeout(function(){
+                self.showCopyText(false);
+                console.log(self.showCopyText())
+            }, 6000);
+        }
 
         if (this.centerX() == 0 && this.centerY() == 0 && this.zoom() == 0) {
             this.centerX(arches.mapDefaultX);
@@ -151,6 +177,7 @@ define([
         params.inWidget = true;
 
         MapEditorViewModel.apply(this, [params]);
+
     };
 
     ko.components.register('map-widget', {

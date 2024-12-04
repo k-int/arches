@@ -12918,3 +12918,24 @@ table.csv-mapping-table td {
 .cke_screen_reader_only {
     position: fixed !important;
 }
+
+.report-copy-btn {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: blue;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+
+    &:hover {
+        color: darkblue;
+        text-decoration: underline;
+        // background-color: rgba(0, 0, 255, 0.1); 
+        cursor: pointer; 
+    }
+}
+
+.copy-geojson-url-message {
+    padding: 2px;
+    font-size: 1.2rem;
+}
