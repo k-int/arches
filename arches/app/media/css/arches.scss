@@ -37,6 +37,14 @@ body {
     font-size: 1.4rem;
 }
 
+main {
+    max-width: calc(100vw - 50px);
+}
+
+header {
+    max-width: calc(100vw - 50px);
+}
+
 img {
     image-orientation: from-image;
 }
@@ -5580,6 +5588,10 @@ div.card-grid-item.selected {
     font-size: 1.6rem;
     padding: 5px;
     align-items: center;
+}
+
+h1.page-header.text-overflow.ep-graph-title.flex {
+    white-space: normal; 
 }
 
 .ep-graph-title-icon {
