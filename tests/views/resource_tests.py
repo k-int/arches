@@ -41,7 +41,7 @@ from tests.utils.permission_test_utils import add_users
 # python manage.py test tests.views.resource_tests --settings="tests.test_settings"
 
 
-class CommandLineTests(ArchesTestCase):
+class ResourceViewTests(ArchesTestCase):
     graph_fixtures = ["Data_Type_Model", "4564-referenced", "4564-person"]
     data_type_graphid = "330802c5-95bd-11e8-b7ac-acde48001122"
     resource_instance_id = "f562c2fa-48d3-4798-a723-10209806c068"
