@@ -5212,6 +5212,12 @@ div.card-grid-item.selected {
     margin-bottom: 0;
 }
 
+.ep-toolbar .top-left-nav {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
 .editor-tools {
     width: 274px;
 }
