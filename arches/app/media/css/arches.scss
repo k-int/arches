@@ -5588,10 +5588,8 @@ div.card-grid-item.selected {
     font-size: 1.6rem;
     padding: 5px;
     align-items: center;
-}
-
-h1.page-header.text-overflow.ep-graph-title.flex {
-    white-space: normal; 
+    display: inline-block;
+    text-overflow: ellipsis;
 }
 
 .ep-graph-title-icon {
