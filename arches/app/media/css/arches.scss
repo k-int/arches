@@ -37,14 +37,6 @@ body {
     font-size: 1.4rem;
 }
 
-main {
-    max-width: calc(100vw - 50px);
-}
-
-header {
-    max-width: calc(100vw - 50px);
-}
-
 img {
     image-orientation: from-image;
 }
@@ -4234,6 +4226,7 @@ div.dropdown-menu.open {
     flex-direction: column;
     width: 100%;
     height: calc(100vh - 50px);
+    max-width: calc(100vw - 50px);
     position: relative;
 }
 
@@ -5186,6 +5179,7 @@ div.card-grid-item.selected {
     background: #fff;
     border-bottom: 1px solid #ddd;
     z-index: 3000;
+    max-width: calc(100vw - 50px);
 }
 
 .ep-menu {
