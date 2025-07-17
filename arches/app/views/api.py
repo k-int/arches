@@ -1300,7 +1300,7 @@ class ResourceReport(APIBase):
             request.GET = get_params
 
             related_resources_response = RelatedResourcesView().get(
-                request, resourceid, include_rr_count=False
+                request, resourceid, include_rr_count=False, graphs=resource_models
             )
             related_resources = json.loads(related_resources_response.content)
 
@@ -1539,8 +1539,13 @@ class BulkDisambiguatedResourceInstance(APIBase):
         user = request.user
         perm = "read_nodegroup"
 
-        disambiguated_resource_instances = OrderedDict().fromkeys(resource_ids)
-        for resource in Resource.objects.filter(pk__in=resource_ids):
+        permitted_resource_ids = list(
+            filter(lambda id: user_can_read_resource(user, id), resource_ids)
+        )
+        disambiguated_resource_instances = OrderedDict().fromkeys(
+            permitted_resource_ids
+        )
+        for resource in Resource.objects.filter(pk__in=permitted_resource_ids):
             disambiguated_resource_instances[str(resource.pk)] = resource.to_json(
                 compact=compact,
                 version=version,

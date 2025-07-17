@@ -16,27 +16,26 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import os
 import csv
 import datetime
 import logging
-from io import StringIO
-from io import BytesIO
 import re
+from io import BytesIO, StringIO
+
 from django.contrib.gis.geos import GeometryCollection, GEOSGeometry
 from django.core.files import File
-from django.core.files.storage import default_storage
+from django.urls import get_script_prefix, resolve, reverse
 from django.utils.translation import gettext as _
-from django.urls import reverse, resolve, get_script_prefix
-from arches.app.models import models
+
+import arches.app.utils.zip as zip_utils
 from arches.app.datatypes.datatypes import DataTypeFactory
-from arches.app.utils.flatten_dict import flatten_dict
+from arches.app.models import models
+from arches.app.models.system_settings import settings
 from arches.app.utils.betterJSONSerializer import JSONDeserializer
 from arches.app.utils.data_management.resources.exporter import ResourceExporter
+from arches.app.utils.flatten_dict import flatten_dict
 from arches.app.utils.geo_utils import GeoUtils
 from arches.app.utils.string_utils import get_str_kwarg_as_bool
-import arches.app.utils.zip as zip_utils
-from arches.app.models.system_settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,6 @@ class SearchResultsExporter(object):
         return subcards_added
 
     def return_ordered_header(self, graphid, export_type):
-
         subcard_list_with_sort = []
         all_cards = models.CardModel.objects.filter(graph=graphid).prefetch_related(
             "nodegroup"
@@ -192,7 +190,7 @@ class SearchResultsExporter(object):
                     output[resource_instance["_source"]["graph_id"]]["output"].append(
                         resource_obj
                     )
-                except KeyError as e:
+                except KeyError:
                     output[resource_instance["_source"]["graph_id"]] = {"output": []}
                     output[resource_instance["_source"]["graph_id"]]["output"].append(
                         resource_obj
@@ -212,7 +210,6 @@ class SearchResultsExporter(object):
                     resource["Link"] = f"{export_namespace}{report_url}"
 
             if format == "geojson":
-
                 if settings.EXPORT_DATA_FIELDS_IN_CARD_ORDER is True:
                     headers = self.return_ordered_header(graph_id, "csv")
                 else:
@@ -230,7 +227,6 @@ class SearchResultsExporter(object):
                 return ret, ""
 
             if format == "tilecsv":
-
                 if settings.EXPORT_DATA_FIELDS_IN_CARD_ORDER is True:
                     headers = self.return_ordered_header(graph_id, "csv")
                 else:
@@ -248,7 +244,6 @@ class SearchResultsExporter(object):
                 )
 
             if format == "shp":
-
                 if settings.EXPORT_DATA_FIELDS_IN_CARD_ORDER is True:
                     headers = self.return_ordered_header(graph_id, "shp")
                 else:
@@ -327,8 +322,7 @@ class SearchResultsExporter(object):
         search_history_obj.downloadfile.name = name
         f = BytesIO(zip_stream)
         download = File(f)
-        storage = default_storage
-        storage.save(search_history_obj.downloadfile.name, download)
+        search_history_obj.downloadfile.save(name, download)
         search_history_obj.save()
         return search_history_obj.searchexportid
 
@@ -336,7 +330,7 @@ class SearchResultsExporter(object):
         nodeid = str(nodeid)
         try:
             return self.node_lookup[nodeid]
-        except KeyError as e:
+        except KeyError:
             self.node_lookup[nodeid] = models.Node.objects.get(pk=nodeid)
             return self.node_lookup[nodeid]
 
@@ -356,7 +350,7 @@ class SearchResultsExporter(object):
                         "datatype": datatype,
                         "features": [feature],
                     }
-        except TypeError as e:
+        except TypeError:
             pass
         return feature_collections
 
